@@ -4,14 +4,15 @@ import { expect, mock, test } from 'claude-code/testing'
 type On = Parameters<Register>[0]
 const ok = { value: { exitCode: 0, stdout: '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
 
-function world(on: On, settings: string) {
+function world(on: On, initial: string) {
+  const files = { settings: initial }
   const clock = mock.clock(on, { now: 0 })
   mock.env(on, { HOME: '/home/me' })
   const spoken: string[] = []
   const models: string[] = []
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   on('ui.status', () => ({ value: undefined }) as never)
-  on('fs.read', () => ({ value: settings }) as never)
+  on('fs.read', () => ({ value: files.settings }) as never)
   on('process.run', ($, e) => {
     spoken.push(e.init?.stdin ?? '')
     return ok
@@ -21,7 +22,7 @@ function world(on: On, settings: string) {
     return { value: { isAnswered: true, text: 'Merged both PRs and pulled main.', usage: {} } } as never
   })
   on('turn.complete', ($, e) => ({ text: 'answer' in e ? e.answer : '' }) as never)
-  return { clock, spoken, models }
+  return { clock, spoken, models, files }
 }
 
 const turn = (answer: string) =>
@@ -54,4 +55,14 @@ test('stays quiet while the old tts-speak.sh Stop hook is configured', async ($,
   await w.clock.advance(1)
   await w.clock.settle()
   expect(w.spoken).toHaveLength(0)
+})
+
+test('starts speaking as soon as the old hook is removed, without a reload', async ($, on) => {
+  const w = world(on, '{"hooks":{"Stop":[{"hooks":[{"command":"bash ~/.claude/hooks/tts-speak.sh"}]}]}}')
+  await $.session.start({ cwd: '/repo', surface: null, isInteractive: true })
+  w.files.settings = '{"hooks":{}}'
+  await $.turn.complete(turn('Removed the hook.'))
+  await w.clock.advance(1)
+  await w.clock.settle()
+  expect(w.spoken).toEqual(['Removed the hook.'])
 })

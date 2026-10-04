@@ -37,8 +37,6 @@ function stripMarkdown(text: string): string {
     .trim()
 }
 
-let isOldHookActive = false
-
 async function oldHookActive($: EngineInterface): Promise<boolean> {
   const home = (await $.env.get('HOME')) ?? ''
   const settings = await $.fs.read(`${home}/.claude/settings.json`).catch(() => '')
@@ -59,27 +57,34 @@ async function speak($: EngineInterface, answer: string) {
   const home = (await $.env.get('HOME')) ?? ''
   const voice = (await $.env.get('CLAUDE_TTS_VOICE')) || `${home}/.local/share/piper/voices/en_US-amy-medium.onnx`
   const speed = (await $.env.get('CLAUDE_TTS_SPEED')) || '0.5'
-  await $.process.run(['bash', '-c', SPEAK_SH, 'tts-lite', voice, speed], { stdin: spoken, timeoutMs: 120_000 })
+  const played = await $.process.run(['bash', '-c', SPEAK_SH, 'tts-lite', voice, speed], { stdin: spoken, timeoutMs: 120_000 })
+  if (played.exitCode !== 0) $.ui.toast(`tts-lite: playback failed (${played.stderr.trim().slice(0, 120) || played.exitCode})`)
+}
+
+const IDLE = 'tts-lite idle: remove the tts-speak.sh Stop hook from ~/.claude/settings.json to switch over'
+
+// Checked on every reply, so removing the old hook takes effect without a reload.
+async function syncIdle($: EngineInterface): Promise<boolean> {
+  const isIdle = await oldHookActive($)
+  $.ui.status(isIdle ? IDLE : undefined)
+  return isIdle
 }
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    isOldHookActive = await oldHookActive($)
-    if (isOldHookActive) {
-      $.ui.status('tts-lite idle: remove the tts-speak.sh Stop hook from ~/.claude/settings.json to switch over')
-    }
+    await syncIdle($)
     return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
     const isMain = e.agentId === undefined
-    if (!isMain || e.isAborted || isOldHookActive || !('answer' in e)) return done
-    if ((await $.env.get('CLAUDE_TTS')) === '0') return done
+    if (!isMain || e.isAborted || !('answer' in e)) return done
+    if ((await $.env.get('CLAUDE_TTS')) === '0' || (await syncIdle($))) return done
 
     const answer = e.answer
     // Off the turn's dispatch, so the prompt comes back at once.
-    $.clock.after(0, () => void speak($, answer))
+    $.clock.after(0, () => void speak($, answer).catch(err => $.ui.toast(`tts-lite: ${String(err).slice(0, 120)}`)))
     return done
   })
 }
