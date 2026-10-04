@@ -1,0 +1,48 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "gitAuthor": "Renovate Bot <ipartington@users.noreply.github.com>",
+  "timezone": "Europe/London",
+  "schedule": ["before 6am on Monday"],
+  "labels": ["dependencies"],
+  "pre-commit": {
+    "enabled": true
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Renovate CLI major used by the config validator in the renovate workflow; keep it on the same major the github-action runs.",
+      "managerFilePatterns": ["/^\\.github/workflows/renovate\\.yml$/"],
+      "matchStrings": ["--package (?<depName>renovate)@(?<currentValue>\\d+)"],
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    },
+    {
+      "customType": "regex",
+      "description": "TypeScript major that scripts/typecheck.sh runs through npx.",
+      "managerFilePatterns": ["/^scripts/typecheck\\.sh$/"],
+      "matchStrings": ["-p (?<depName>typescript)@(?<currentValue>\\d+)"],
+      "datasourceTemplate": "npm",
+      "versioningTemplate": "npm"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Automerge pre-commit hook updates",
+      "matchManagers": ["pre-commit"],
+      "groupName": "pre-commit hooks",
+      "automerge": true
+    },
+    {
+      "description": "Automerge GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true
+    },
+    {
+      "description": "A new TypeScript major can change what type-checks: review by hand",
+      "matchPackageNames": ["typescript"],
+      "automerge": false
+    }
+  ]
+}
