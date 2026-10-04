@@ -1,0 +1,10 @@
+{
+  "name": "tts-lite",
+  "version": "0.1.0",
+  "description": "Speaks a one-line summary of each reply without starting a headless claude session",
+  "author": {
+    "name": "Iain Partington"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ipartington/claude-mods"
+}

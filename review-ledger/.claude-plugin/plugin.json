@@ -1,0 +1,11 @@
+{
+  "name": "review-ledger",
+  "version": "0.1.0",
+  "description": "Keeps review findings (H1, M3, L2...) per repo across sessions and ticks them off when their PR merges",
+  "author": {
+    "name": "Iain Partington"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ipartington/claude-mods",
+  "types": "./types/index.d.ts"
+}

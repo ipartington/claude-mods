@@ -1,0 +1,19 @@
+{
+  "name": "handoff-on-clear",
+  "version": "0.1.0",
+  "description": "Saves a handoff when you /clear or exit, and offers it back on your next prompt",
+  "author": {
+    "name": "Iain Partington"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ipartington/claude-mods",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "summarize": {
+      "type": "boolean",
+      "title": "Summarize with a cached fork",
+      "description": "Write a short summary with one model call over the cached transcript (small usage). Off: mechanical handoff only, no usage.",
+      "default": true
+    }
+  }
+}

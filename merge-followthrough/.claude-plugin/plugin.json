@@ -1,0 +1,11 @@
+{
+  "name": "merge-followthrough",
+  "version": "0.1.0",
+  "description": "Watches your PRs, and when one merges it pulls main and deletes the branch, then tells Claude",
+  "author": {
+    "name": "Iain Partington"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ipartington/claude-mods",
+  "types": "./types/index.d.ts"
+}

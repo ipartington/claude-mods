@@ -1,0 +1,48 @@
+repos:
+  # --- Standard hygiene ---
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-json
+      - id: check-yaml
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: check-executables-have-shebangs
+      - id: check-shebang-scripts-are-executable
+      - id: detect-private-key
+
+  # --- Secrets ---
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+
+  # --- Shell script linting ---
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+
+  # --- Mods: the same checks Claude Code runs before loading them ---
+  - repo: local
+    hooks:
+      - id: mod-validate
+        name: Validate mods (claude plugin validate)
+        entry: scripts/check-mods.sh validate
+        language: script
+        require_serial: true
+        files: ^[^/]+/(\.claude-plugin/plugin\.json|hooks/|types/)
+      - id: mod-typecheck
+        name: Type-check mods (tsc against Claude Code's API types)
+        entry: scripts/typecheck.sh
+        language: script
+        require_serial: true
+        files: ^[^/]+/(hooks|types|tests)/.*\.tsx?$
+      - id: mod-test
+        name: Test mods (claude plugin test)
+        entry: scripts/check-mods.sh test
+        language: script
+        require_serial: true
+        files: ^[^/]+/(\.claude-plugin/plugin\.json|hooks/|types/|tests/)

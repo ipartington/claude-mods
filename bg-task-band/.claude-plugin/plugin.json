@@ -1,0 +1,11 @@
+{
+  "name": "bg-task-band",
+  "version": "0.1.0",
+  "description": "A band above the prompt showing running background tasks, their elapsed time and last output line",
+  "author": {
+    "name": "Iain Partington"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ipartington/claude-mods",
+  "types": "./types/index.d.ts"
+}
