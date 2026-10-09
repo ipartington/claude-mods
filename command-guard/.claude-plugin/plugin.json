@@ -1,0 +1,10 @@
+{
+  "name": "command-guard",
+  "version": "0.1.0",
+  "description": "Refuses shell commands a project's .claude/command-guards.json rules out, for the main loop and every subagent",
+  "author": {
+    "name": "Iain Partington"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ipartington/claude-mods"
+}

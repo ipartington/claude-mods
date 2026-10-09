@@ -1,6 +1,6 @@
 # claude-mods
 
-Five [Claude Code](https://claude.com/claude-code) mods that remove the routine
+Six [Claude Code](https://claude.com/claude-code) mods that remove the routine
 I kept doing by hand. Each one comes from an audit of my last 30 Claude Code
 sessions. A mod is a plugin of function hooks: it runs inside Claude Code and
 can draw a band above the prompt, a pane, a toast or a status line, and can step
@@ -13,6 +13,7 @@ into prompts, tool calls and the session's start and end.
 | [`bg-task-band`](bg-task-band) | "how are we looking", "any updates", "when's the estimated end time?" | Band: `⏳ Wait for cp-22 recap 12m/25m · TASK [drain]`; toast on finish | None |
 | [`review-ledger`](review-ledger) | "what's left to do from the review?", updating the H/M/L list by hand | Pane of items by severity (`/review`); toast when an item's PR merges | None |
 | [`tts-lite`](tts-lite) | A Stop hook starting a full `claude -p` per reply to speak a summary, which left 200 stray transcripts | Audio only | Short replies none; longer ones one bare Haiku completion |
+| [`command-guard`](command-guard) | A "never run X" lesson kept only in memory, which subagents never read; an agent deleting a CNPG primary pod and losing five weeks of data | A refused tool call with the reason; nothing otherwise | None |
 
 ## How each one works
 
@@ -49,6 +50,16 @@ through Piper and `paplay`, or espeak. It reads the same `CLAUDE_TTS`,
 shell hook it replaces, and stays silent while that hook (`tts-speak.sh`) is
 still in `~/.claude/settings.json`, so you never hear double.
 
+**command-guard**: on every `Bash` and `Monitor` call, the main loop's and each
+subagent's, it reads `<project root>/.claude/command-guards.json` and refuses
+the command when a guard matches, giving Claude the guard's reason. A guard
+names a `command` and regexes the rest of that shell segment must match
+(`allOf`, and at least one of `anyOf`). The command has to be in command
+position (segment start, after a quote, `sudo`, `timeout N` or `ssh host`), so
+a commit message that only mentions it passes. No rules file, no effect; the
+rules live in each project, not here. Commands you type with `!` are not tool
+calls and are never refused.
+
 ## Install
 
 Requirements: Claude Code 2.1.288 or later (function-hook mods are early access
@@ -62,7 +73,7 @@ Load them for every session by listing the folders in `CLAUDE_CODE_PLUGIN_DIRS`
 ```json
 {
   "env": {
-    "CLAUDE_CODE_PLUGIN_DIRS": "~/code/claude-mods/merge-followthrough:~/code/claude-mods/handoff-on-clear:~/code/claude-mods/bg-task-band:~/code/claude-mods/review-ledger:~/code/claude-mods/tts-lite"
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/code/claude-mods/merge-followthrough:~/code/claude-mods/handoff-on-clear:~/code/claude-mods/bg-task-band:~/code/claude-mods/review-ledger:~/code/claude-mods/tts-lite:~/code/claude-mods/command-guard"
   }
 }
 ```
