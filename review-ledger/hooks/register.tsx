@@ -6,6 +6,9 @@ import type { ReviewItem } from '../types'
 // A per-repo ledger of review findings (H1, M3, L2...) that survives /clear.
 // Claude writes to it through a tool; merged PRs tick items off; a pane and
 // /review show it; prompts that name an item get the ledger as context.
+// With the `sidebar` option (on by default) the pane opens by itself while
+// items are left: in the fullscreen layout it docks to the right of the
+// transcript as a narrow sidebar, grouped by severity.
 
 const items = atom({ plugin: 'review-ledger', key: 'items' } as const, [])
 
@@ -13,6 +16,8 @@ const PANE = 'review-ledger'
 const TOOL = 'items'
 const TOOL_ID = `mcp__review-ledger__${TOOL}`
 const POLL_MS = 5 * 60_000
+const SIDEBAR_COLUMNS = 44
+const SEVERITY = { H: 'High', M: 'Medium', L: 'Low' } as Record<string, string>
 const ITEM_REF = /\b[HMLhml]\d{1,2}\b/
 const ORDER = { H: 0, M: 1, L: 2 } as Record<string, number>
 
@@ -42,6 +47,14 @@ function summary(list: ReviewItem[], only?: Set<string>): string {
     `Update it with the ${TOOL_ID} tool as items change.`
 }
 
+function remaining(list: ReviewItem[]): number {
+  return list.filter(i => i.status === 'open' || i.status === 'in-progress').length
+}
+
+async function openPane($: EngineInterface) {
+  await $.ui.open({ id: PANE, title: 'Review items', columns: SIDEBAR_COLUMNS })
+}
+
 async function checkMerged($: EngineInterface) {
   const list = await read($, items)
   const waiting = list.filter(i => i.status === 'in-progress' && i.pr > 0)
@@ -62,7 +75,9 @@ async function checkMerged($: EngineInterface) {
   if (changed) await save($, next)
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const sidebar = options.sidebar !== false
+
   on('session.start', async ($, e, next) => {
     repoKey = `ledger:${await repoRoot($)}`
     const saved = ((await $.store.get(repoKey)) as ReviewItem[] | undefined) ?? []
@@ -104,6 +119,7 @@ export const register: Register = on => {
     })
     $.clock.every(POLL_MS, () => void checkMerged($))
     void checkMerged($)
+    if (sidebar && remaining(saved) > 0) $.clock.after(0, () => void openPane($))
 
     return next(e)
   })
@@ -130,7 +146,9 @@ export const register: Register = on => {
           note: raw.note ?? old?.note ?? '',
         })
       }
+      const had = remaining(list)
       await save($, [...byId.values()])
+      if (sidebar && had === 0 && remaining(await read($, items)) > 0) $.clock.after(0, () => void openPane($))
     }
 
     return { result: summary(await read($, items)) }
@@ -139,7 +157,7 @@ export const register: Register = on => {
   on('command.run', { command: 'review' }, async ($, e) => {
     const list = await read($, items)
     if (e.args.trim() === 'list') return { text: list.length ? summary(list) : 'No review items for this repo yet.' }
-    await $.ui.open({ id: PANE, title: 'Review items' })
+    await openPane($)
     return { text: `${list.length} review item(s) for this repo.` }
   })
 
@@ -156,22 +174,58 @@ export const register: Register = on => {
     const list = await read($, items)
     const mark = { open: '○', 'in-progress': '◐', done: '●', wontdo: '–' } as const
     const color = { open: 'yellow', 'in-progress': 'cyan', done: 'green', wontdo: 'gray' } as const
-    const left = list.filter(i => i.status === 'open' || i.status === 'in-progress').length
+    const left = remaining(list)
+    const isDocked = e.props.placement === 'dock'
+
+    if (list.length === 0) return <Text dimColor>No review items yet. Ask Claude for a review.</Text>
+
+    const row = (i: ReviewItem) => (
+      <Box key={i.id}>
+        <Text color={color[i.status]}>{mark[i.status]} </Text>
+        <Text bold>{i.id.padEnd(4)}</Text>
+        <Text dimColor={i.status === 'done' || i.status === 'wontdo'} wrap="truncate">
+          {i.title}
+          {i.pr ? ` #${i.pr}` : ''}
+        </Text>
+      </Box>
+    )
+
+    if (!isDocked) {
+      return (
+        <Box flexDirection="column">
+          <Text bold>{left} left of {list.length}</Text>
+          {list.map(row)}
+        </Box>
+      )
+    }
+
+    // Docked sidebar: open work first, grouped by severity, notes on a second
+    // line; finished items collapse to a count at the bottom.
+    const active = list.filter(i => i.status === 'open' || i.status === 'in-progress')
+    const finished = list.length - active.length
+    const groups = ['H', 'M', 'L']
+      .map(sev => ({ sev, rows: active.filter(i => i.id[0]?.toUpperCase() === sev) }))
+      .filter(g => g.rows.length > 0)
 
     return (
       <Box flexDirection="column">
-        {list.length === 0 && <Text dimColor>No review items yet. Ask Claude for a review.</Text>}
-        {list.length > 0 && <Text bold>{left} left of {list.length}</Text>}
-        {list.map(i => (
-          <Box key={i.id}>
-            <Text color={color[i.status]}>{mark[i.status]} </Text>
-            <Text bold>{i.id.padEnd(4)}</Text>
-            <Text dimColor={i.status === 'done' || i.status === 'wontdo'} wrap="truncate">
-              {i.title}
-              {i.pr ? ` #${i.pr}` : ''}
-            </Text>
+        <Text bold>{left} left of {list.length}</Text>
+        {groups.map(g => (
+          <Box key={g.sev} flexDirection="column" marginTop={1}>
+            <Text bold dimColor>{SEVERITY[g.sev]} ({g.rows.length})</Text>
+            {g.rows.map(i => (
+              <Box key={i.id} flexDirection="column">
+                {row(i)}
+                {i.note && <Text dimColor wrap="truncate">{'      '}{i.note}</Text>}
+              </Box>
+            ))}
           </Box>
         ))}
+        {finished > 0 && (
+          <Box marginTop={1}>
+            <Text dimColor>{finished} done or won't do</Text>
+          </Box>
+        )}
       </Box>
     )
   })

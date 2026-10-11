@@ -11,7 +11,7 @@ into prompts, tool calls and the session's start and end.
 | [`merge-followthrough`](merge-followthrough) | Typing "616 merged" (61 times in 30 sessions), then Claude spending a turn on `git checkout main && git pull` and deleting the branch; `! git pull` by hand at session start | Band of your open PRs with CI ✓ ✗ …; toast when a merge has been pulled; `/prs` | None |
 | [`handoff-on-clear`](handoff-on-clear) | "give me a prompt to restart", "I've lost your feedback, can you redisplay" after `/clear` | Toast on save; band `↺ Handoff from last session [Load] [Dismiss]`; `/handoff` | One cached fork per `/clear` (option `summarize`, on by default) |
 | [`bg-task-band`](bg-task-band) | "how are we looking", "any updates", "when's the estimated end time?" | Band: `⏳ Wait for cp-22 recap 12m/25m · TASK [drain]`; toast on finish | None |
-| [`review-ledger`](review-ledger) | "what's left to do from the review?", updating the H/M/L list by hand | Pane of items by severity (`/review`); toast when an item's PR merges | None |
+| [`review-ledger`](review-ledger) | "what's left to do from the review?", updating the H/M/L list by hand | Sidebar of items by severity, docked right of the transcript while items are left (`/review` opens it any time); toast when an item's PR merges | None |
 | [`tts-lite`](tts-lite) | A Stop hook starting a full `claude -p` per reply to speak a summary, which left 200 stray transcripts | Audio only | Short replies none; longer ones one bare Haiku completion |
 | [`command-guard`](command-guard) | A "never run X" lesson kept only in memory, which subagents never read; an agent deleting a CNPG primary pod and losing five weeks of data | A refused tool call with the reason; nothing otherwise | None |
 
@@ -41,7 +41,13 @@ calls to record findings (`H1`, `M3`, `L2`) and their state: open, in-progress
 with a PR number, done, or won't do. It's stored per repository root, so it
 survives `/clear` and new sessions. Every 5 minutes it checks in-progress PRs
 and marks an item done when its PR merges. A prompt that says "review" or names
-an item gets the ledger as context.
+an item gets the ledger as context. While items are left it opens its pane by
+itself (option `sidebar`, on by default), at session start or when Claude
+records the first new ones. In the fullscreen layout (`"tui": "fullscreen"`)
+from 144 columns (110 once you've opened it before), the pane docks right of the
+transcript as a 44-column sidebar: open items grouped by severity, notes
+underneath, finished ones folded into a count. On the main screen, or when
+narrower, it sits above the prompt as a compact list.
 
 **tts-lite**: on `turn.complete` it reads replies of 20 words or fewer out as
 they are, and asks Haiku for one sentence about anything longer. It plays them
