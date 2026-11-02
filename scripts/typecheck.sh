@@ -33,6 +33,6 @@ for mod in "${mods[@]}"; do
   "include": ["$types", "$root/$mod/hooks", "$root/$mod/types", "$root/$mod/tests"]
 }
 JSON
-  if npx --yes -p typescript@5 tsc -p "$tmp/tsconfig.json"; then echo "typed: $mod"; else status=1; fi
+  if npx --yes -p typescript@7 tsc -p "$tmp/tsconfig.json"; then echo "typed: $mod"; else status=1; fi
 done
 exit "$status"
