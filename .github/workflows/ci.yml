@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: "3.15"
 
       # Hygiene, gitleaks and shellcheck run here. The mod hooks (validate,
       # typecheck, test) need the claude CLI and its generated API types, so they
