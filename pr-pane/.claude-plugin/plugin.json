@@ -1,0 +1,19 @@
+{
+  "name": "pr-pane",
+  "version": "0.1.0",
+  "description": "A sidebar of the repo's open PRs: pick one to see its description, checks and changed files",
+  "author": {
+    "name": "Iain Partington"
+  },
+  "license": "MIT",
+  "repository": "https://github.com/ipartington/claude-mods",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "sidebar": {
+      "type": "boolean",
+      "title": "Open as a sidebar",
+      "description": "Open the PR pane beside the transcript when a session starts with open PRs. Off: only /pr-pane opens it.",
+      "default": true
+    }
+  }
+}

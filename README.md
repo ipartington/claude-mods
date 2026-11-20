@@ -1,6 +1,6 @@
 # claude-mods
 
-Six [Claude Code](https://claude.com/claude-code) mods that remove the routine
+Seven [Claude Code](https://claude.com/claude-code) mods that remove the routine
 I kept doing by hand. Each one comes from an audit of my last 30 Claude Code
 sessions. A mod is a plugin of function hooks: it runs inside Claude Code and
 can draw a band above the prompt, a pane, a toast or a status line, and can step
@@ -14,6 +14,7 @@ into prompts, tool calls and the session's start and end.
 | [`review-ledger`](review-ledger) | "what's left to do from the review?", updating the H/M/L list by hand | Sidebar of items by severity, docked right of the transcript while items are left (`/review` opens it any time); toast when an item's PR merges | None |
 | [`tts-lite`](tts-lite) | A Stop hook starting a full `claude -p` per reply to speak a summary, which left 200 stray transcripts | Audio only | Short replies none; longer ones one bare Haiku completion |
 | [`command-guard`](command-guard) | A "never run X" lesson kept only in memory, which subagents never read; an agent deleting a CNPG primary pod and losing five weeks of data | A refused tool call with the reason; nothing otherwise | None |
+| [`pr-pane`](pr-pane) | `gh pr list` then `gh pr view N` to see what's open and what each PR touches | Sidebar of open PRs with CI ✓ ✗ …; the picked one's branch, description and changed files below a split; `/pr-pane` | None |
 
 ## How each one works
 
@@ -66,11 +67,25 @@ a commit message that only mentions it passes. No rules file, no effect; the
 rules live in each project, not here. Commands you type with `!` are not tool
 calls and are never refused.
 
+**pr-pane**: polls `gh pr list --state open` every 2 minutes and keeps the
+list at the top of a pane, split by a rule from the PR picked below it. It picks
+the PR for the branch you're on, or else the first one listed, and loads it with
+`gh pr view`: branch and base, +/− counts, the first few lines of the
+description (template comments and the Claude Code attribution line stripped)
+and up to 15 changed files, each named first with its folder dimmed after.
+Status is named only when it needs you: checks failing or running, conflicts,
+changes requested, draft. Press a PR (or Tab to it and Enter) to show it
+instead; `r` refreshes while the pane has focus. A PR is reloaded when
+its `updatedAt` changes. With open PRs it opens by itself at session start
+(option `sidebar`, on by default) and docks right of the transcript in the
+fullscreen layout as a 56-column sidebar; `/pr-pane` opens and focuses it any
+time.
+
 ## Install
 
 Requirements: Claude Code 2.1.288 or later (function-hook mods are early access
 and the API moves between releases), plus `git` and an authenticated `gh` for
-`merge-followthrough` and `review-ledger`. `tts-lite` needs `paplay` and Piper
+`merge-followthrough`, `review-ledger` and `pr-pane`. `tts-lite` needs `paplay` and Piper
 or espeak.
 
 Load them for every session by listing the folders in `CLAUDE_CODE_PLUGIN_DIRS`
@@ -79,7 +94,7 @@ Load them for every session by listing the folders in `CLAUDE_CODE_PLUGIN_DIRS`
 ```json
 {
   "env": {
-    "CLAUDE_CODE_PLUGIN_DIRS": "~/code/claude-mods/merge-followthrough:~/code/claude-mods/handoff-on-clear:~/code/claude-mods/bg-task-band:~/code/claude-mods/review-ledger:~/code/claude-mods/tts-lite:~/code/claude-mods/command-guard"
+    "CLAUDE_CODE_PLUGIN_DIRS": "~/code/claude-mods/merge-followthrough:~/code/claude-mods/handoff-on-clear:~/code/claude-mods/bg-task-band:~/code/claude-mods/review-ledger:~/code/claude-mods/tts-lite:~/code/claude-mods/command-guard:~/code/claude-mods/pr-pane"
   }
 }
 ```
