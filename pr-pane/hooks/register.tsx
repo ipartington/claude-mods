@@ -16,9 +16,9 @@ const problem = atom({ plugin: 'pr-pane', key: 'problem' } as const, '')
 const PANE = 'pr-pane'
 const POLL_MS = 2 * 60_000
 const SIDEBAR_COLUMNS = 56
-const LIST_ROWS = 8
+const LIST_ROWS = 6
 const FILE_ROWS = 15
-const BODY_LINES = 6
+const BODY_LINES = 4
 
 type GhCheck = { status?: string; conclusion?: string; state?: string }
 type GhPr = {
@@ -64,6 +64,17 @@ function brief(body: string): string {
     .filter((l, i, all) => l !== '' || (i > 0 && all[i - 1] !== ''))
     .join('\n')
     .trim()
+}
+
+// What needs you about a PR, in words; a PR that's fine says nothing.
+function notes(d: PrDetail): { text: string; color: 'red' | 'yellow' | 'gray' }[] {
+  const out: { text: string; color: 'red' | 'yellow' | 'gray' }[] = []
+  if (d.checks === 'fail') out.push({ text: 'Checks failing', color: 'red' })
+  if (d.checks === 'pending') out.push({ text: 'Checks running', color: 'gray' })
+  if (d.mergeable === 'CONFLICTING') out.push({ text: `Conflicts with ${d.base}`, color: 'red' })
+  if (d.review === 'CHANGES_REQUESTED') out.push({ text: 'Changes requested', color: 'yellow' })
+  if (d.isDraft) out.push({ text: 'Draft', color: 'gray' })
+  return out
 }
 
 async function gh($: EngineInterface, args: string[]): Promise<unknown> {
@@ -179,89 +190,101 @@ export const register: Register = (on, options) => {
     const d = await read($, detail)
     const err = await read($, problem)
     const isWide = e.props.placement !== 'inline'
-    const mark = { pass: '✓', fail: '✗', pending: '…', none: '·' } as const
-    const color = { pass: 'green', fail: 'red', pending: 'yellow', none: 'gray' } as const
+    // A cell of air on each side, a row above and below the split.
+    const pad = isWide ? 2 : 1
+    const rule = '─'.repeat(Math.max(1, e.props.bodyColumns - pad * 2))
 
-    const header = (
-      <Box>
-        <Text bold>{list.length} open </Text>
+    // Keys exist only while the pane has them; at rest it refreshes itself.
+    const keys = e.props.isFocused && (
+      <Box marginTop={1}>
         <Button key="refresh" plain hotkey="r" onPress={() => void poll($)}>refresh</Button>
+      </Box>
+    )
+
+    // The terminal has one text size: there the heading is set apart by
+    // weight and the air under it; other surfaces draw `size` larger.
+    const heading = (
+      <Box justifyContent="space-between" marginBottom={1}>
+        <Text bold size="title">Pull requests</Text>
+        {list.length > 0 && <Text dimColor>{list.length} open</Text>}
       </Box>
     )
 
     if (list.length === 0) {
       return (
-        <Box flexDirection="column">
-          {header}
-          <Text dimColor>{err ? `gh: ${err}` : 'No open PRs.'}</Text>
+        <Box flexDirection="column" paddingX={pad} paddingY={isWide ? 1 : 0}>
+          {heading}
+          <Text dimColor>{err ? `gh couldn't list PRs: ${err}` : 'No open pull requests.'}</Text>
+          {keys}
         </Box>
       )
     }
 
-    const rows = list.slice(0, isWide ? LIST_ROWS : 4)
+    const rows = list.slice(0, isWide ? LIST_ROWS : 3)
     const files = d?.files ?? []
-    const fileRows = files.slice(0, isWide ? FILE_ROWS : 5)
-    const width = String(Math.max(0, ...fileRows.map(f => f.additions))).length + 1
+    const fileRows = files.slice(0, isWide ? FILE_ROWS : 4)
 
     return (
-      <Box flexDirection="column">
-        {header}
-        {rows.map(p => (
-          <Button key={`pr-${p.number}`} plain onPress={() => void select($, p.number)}>
-            <Text color={p.number === pick ? 'cyan' : undefined} bold={p.number === pick}>
-              {p.number === pick ? '▸' : ' '}
-            </Text>
-            <Text color={color[p.checks]}>{mark[p.checks]}</Text>
-            <Text bold={p.number === pick}> #{p.number} </Text>
-            <Text dimColor={p.number !== pick}>{p.isDraft ? 'draft · ' : ''}{p.title}</Text>
-          </Button>
-        ))}
-        {list.length > rows.length && <Text dimColor>  +{list.length - rows.length} more</Text>}
+      <Box flexDirection="column" paddingX={pad} paddingY={isWide ? 1 : 0}>
+        {heading}
+        {rows.map(p => {
+          const isPicked = p.number === pick
+          return (
+            <Button key={`pr-${p.number}`} plain onPress={() => void select($, p.number)}>
+              <Text color="cyan">{isPicked ? '▌ ' : '  '}</Text>
+              <Text dimColor>{`#${p.number}`.padEnd(5)}</Text>
+              <Text bold={isPicked} dimColor={p.isDraft && !isPicked}>{p.title}</Text>
+              {p.checks === 'fail' && <Text color="red">  failing</Text>}
+            </Button>
+          )
+        })}
+        {list.length > rows.length && <Text dimColor>       {list.length - rows.length} more</Text>}
 
-        {!d && pick > 0 && (
-          <Box marginTop={1}>
-            <Text dimColor>{err || `Loading #${pick}…`}</Text>
-          </Box>
-        )}
+        <Box marginY={1}>
+          <Text dimColor>{rule}</Text>
+        </Box>
+
+        {!d && <Text dimColor>{err ? `gh couldn't load #${pick}: ${err}` : `Loading #${pick}…`}</Text>}
         {d && (
-          <Box flexDirection="column" marginTop={1}>
-            <Text bold wrap="truncate">#{d.number} {d.title}</Text>
-            <Text dimColor wrap="truncate">
-              {d.author} · {d.branch} → {d.base}
-            </Text>
-            <Box>
-              <Text color={color[d.checks]}>{mark[d.checks]} checks </Text>
-              <Text color="green">+{d.additions} </Text>
-              <Text color="red">−{d.deletions} </Text>
-              <Text dimColor>
-                {d.review ? `· ${d.review.toLowerCase().replace(/_/g, ' ')} ` : ''}
-                {d.isDraft ? '· draft ' : ''}
-                {d.mergeable === 'CONFLICTING' ? '· conflicts' : ''}
-              </Text>
+          <Box flexDirection="column">
+            <Text bold size="heading" maxLines={2}>{d.title}</Text>
+            <Box justifyContent="space-between">
+              <Text dimColor wrap="truncate">{d.branch} → {d.base}</Text>
+              <Box flexShrink={0}>
+                <Text dimColor> +{d.additions} −{d.deletions}  </Text>
+                <Link href={d.url} label={`#${d.number}`} />
+              </Box>
             </Box>
+            {notes(d).length > 0 && (
+              <Box>
+                {notes(d).map(n => <Text color={n.color}>{n.text}   </Text>)}
+              </Box>
+            )}
+
             {d.body !== '' && (
               <Box marginTop={1}>
                 <Text maxLines={isWide ? BODY_LINES : 2}>{d.body}</Text>
               </Box>
             )}
-            <Box marginTop={1}>
-              <Text bold>Files ({files.length})</Text>
+
+            <Box flexDirection="column" marginTop={isWide ? 2 : 1}>
+              {fileRows.map(f => {
+                const at = f.path.lastIndexOf('/')
+                return (
+                  <Box key={f.path} justifyContent="space-between">
+                    <Box flexShrink={1}>
+                      <Text wrap="truncate">{f.path.slice(at + 1)}</Text>
+                      {at > 0 && <Text dimColor wrap="truncate-start">  {f.path.slice(0, at)}</Text>}
+                    </Box>
+                    <Text dimColor>  {f.deletions > 0 ? `+${f.additions} −${f.deletions}` : `+${f.additions}`}</Text>
+                  </Box>
+                )
+              })}
+              {files.length > fileRows.length && <Text dimColor>{files.length - fileRows.length} more files</Text>}
             </Box>
-            {fileRows.map(f => (
-              <Box key={f.path}>
-                <Text color="green">{`+${f.additions}`.padStart(width)} </Text>
-                <Text color="red">{`−${f.deletions}`.padEnd(width)} </Text>
-                <Text wrap="truncate-start">{f.path}</Text>
-              </Box>
-            ))}
-            {files.length > fileRows.length && <Text dimColor>  +{files.length - fileRows.length} more files</Text>}
-            {isWide && (
-              <Box marginTop={1}>
-                <Link href={d.url} label="Open on GitHub" />
-              </Box>
-            )}
           </Box>
         )}
+        {keys}
       </Box>
     )
   })

@@ -14,7 +14,7 @@ into prompts, tool calls and the session's start and end.
 | [`review-ledger`](review-ledger) | "what's left to do from the review?", updating the H/M/L list by hand | Sidebar of items by severity, docked right of the transcript while items are left (`/review` opens it any time); toast when an item's PR merges | None |
 | [`tts-lite`](tts-lite) | A Stop hook starting a full `claude -p` per reply to speak a summary, which left 200 stray transcripts | Audio only | Short replies none; longer ones one bare Haiku completion |
 | [`command-guard`](command-guard) | A "never run X" lesson kept only in memory, which subagents never read; an agent deleting a CNPG primary pod and losing five weeks of data | A refused tool call with the reason; nothing otherwise | None |
-| [`pr-pane`](pr-pane) | `gh pr list` then `gh pr view N` to see what's open and what each PR touches | Sidebar of open PRs with CI ✓ ✗ …; the picked one's branch, review state, description and changed files underneath; `/pr-pane` | None |
+| [`pr-pane`](pr-pane) | `gh pr list` then `gh pr view N` to see what's open and what each PR touches | Sidebar of open PRs with CI ✓ ✗ …; the picked one's branch, description and changed files below a split; `/pr-pane` | None |
 
 ## How each one works
 
@@ -68,12 +68,14 @@ rules live in each project, not here. Commands you type with `!` are not tool
 calls and are never refused.
 
 **pr-pane**: polls `gh pr list --state open` every 2 minutes and keeps the
-list at the top of a pane. It picks the PR for the branch you're on, or else
-the first one listed, and loads it with `gh pr view`: author, branch and base,
-checks, review decision, +/− counts, the first few lines of the description
-(template comments and the Claude Code attribution line stripped) and up to 15
-changed files with their line counts. Press a PR (or Tab to it and Enter) to
-show it instead; `r` refreshes while the pane has focus. A PR is reloaded when
+list at the top of a pane, split by a rule from the PR picked below it. It picks
+the PR for the branch you're on, or else the first one listed, and loads it with
+`gh pr view`: branch and base, +/− counts, the first few lines of the
+description (template comments and the Claude Code attribution line stripped)
+and up to 15 changed files, each named first with its folder dimmed after.
+Status is named only when it needs you: checks failing or running, conflicts,
+changes requested, draft. Press a PR (or Tab to it and Enter) to show it
+instead; `r` refreshes while the pane has focus. A PR is reloaded when
 its `updatedAt` changes. With open PRs it opens by itself at session start
 (option `sidebar`, on by default) and docks right of the transcript in the
 fullscreen layout as a 56-column sidebar; `/pr-pane` opens and focuses it any

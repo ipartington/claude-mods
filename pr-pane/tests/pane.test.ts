@@ -64,10 +64,17 @@ test('opens beside the transcript on the PR for the current branch, with its fil
   expect(opened).toEqual(['pr-pane'])
 
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: /^#9 Add pr-pane$/ }))?.text).toBe('#9 Add pr-pane')
+  expect((await ui.find({ type: 'Text', text: /^Pull requests$/ }))?.text).toBe('Pull requests')
+  expect((await ui.find({ type: 'Text', text: /open$/ }))?.text).toBe('2 open')
+  expect((await ui.find({ type: 'Text', text: /^Add pr-pane$/ }))?.text).toBe('Add pr-pane')
+  expect((await ui.find({ type: 'Text', text: /^feat\/pr-pane/ }))?.text).toBe('feat/pr-pane → main')
+  // Only what needs you is named: a draft with checks running.
+  expect((await ui.find({ type: 'Text', text: /Checks running/ }))?.text).toContain('Checks running')
+  expect(await ui.find({ type: 'Text', text: /refresh/ })).toBe(undefined)
   expect((await ui.find({ type: 'Text', text: /What #9 does/ }))?.text).toBe('What #9 does.')
   expect(await ui.find({ type: 'Text', text: /Generated with/ })).toBe(undefined)
-  expect((await ui.find({ type: 'Text', text: /file-9/ }))?.text).toBe('pr-pane/file-9.ts')
+  expect((await ui.find({ type: 'Text', text: /^file-9/ }))?.text).toBe('file-9.ts')
+  expect((await ui.find({ type: 'Text', text: /^\s*pr-pane$/ }))?.text?.trim()).toBe('pr-pane')
   await ui.unmount()
 })
 
@@ -78,10 +85,10 @@ test('pressing another PR shows that one', async ($, on) => {
 
   const ui = await $.ui.mount({ ...PANE, surface: 'desktop' })
   // Not on a PR branch: the first PR gh lists is picked.
-  expect((await ui.find({ type: 'Text', text: /file-7/ }))?.text).toBe('pr-pane/file-7.ts')
+  expect((await ui.find({ type: 'Text', text: /^file-7/ }))?.text).toBe('file-7.ts')
   await ui.press({ key: 'pr-9' })
   await clock.settle()
-  expect((await ui.find({ type: 'Text', text: /file-9/ }))?.text).toBe('pr-pane/file-9.ts')
+  expect((await ui.find({ type: 'Text', text: /^file-9/ }))?.text).toBe('file-9.ts')
   await ui.unmount()
 })
 
